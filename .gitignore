@@ -11,5 +11,14 @@ states/
 *.tsbuildinfo
 
 # Optional
+build/
+downloads/
+var/
+
+# Environments
 .env
 .env.local
+.venv
+
+# VS Code
+.vscode/
