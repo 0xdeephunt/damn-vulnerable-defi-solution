@@ -25,23 +25,31 @@ Each challenge's solution is organized in its own directory, for example, `01-un
 ## How to Run the Solutions
 
 1.  Clone this repository:
+
     ```bash
     git clone https://github.com/0xdeephunt/damn-vulnerable-defi-solution.git
     cd damn-vulnerable-defi-solution
+    ```
+
+    Optional
+    ```bash
     git submodule update --init --recursive
     ```
 
 2. Build Docker Image:
+
     ```bash
     docker build -t foundry-dev:latest .
     ```
 
 3. Start the Service:
+
     ```bash
     docker run -it --rm --name foundry-env -v ".:/app" -p 8545:8545 -p 3000:3000 foundry-dev:latest 
     ```
 
 4. Verify Foundry version
+
     ```
     # forge --version
     forge Version: 1.2.3-stable
@@ -50,14 +58,21 @@ Each challenge's solution is organized in its own directory, for example, `01-un
     Build Profile: maxperf
     ```
 
-5.  Install
+5.  Install & Build
+
+    Install
     ```bash
-    cd ./contract
     forge install
+    ```
+
+    Build
+    ```bash
+    forge clean
     forge build
     ```
 
 6.  Run a solution
+
     ```bash
     forge test --mp test/<challenge-name>/<ChallengeName>.t.sol
     ```
