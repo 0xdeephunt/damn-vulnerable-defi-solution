@@ -80,3 +80,7 @@ Each challenge's solution is organized in its own directory, for example, `01-un
      ```bash
     forge test --mp test/unstoppable/Unstoppable.t.sol
     ```
+    Run with log:
+     ```bash
+    forge test -vv --mp test/unstoppable/Unstoppable.t.sol
+    ```
