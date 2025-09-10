@@ -95,7 +95,7 @@ contract TrusterChallenge is Test {
         console.log("recovery balance:", token.balanceOf(recovery)/1e18);
 
         console.log("");
-        console.log("### test_naiveReceiver end ###");
+        console.log("### test_truster end ###");
     }
 
     function run_attack() internal {
